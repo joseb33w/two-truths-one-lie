@@ -8,6 +8,19 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     const GUESSES_TABLE = 'uNMexs7BYTXQ2_two_truths_one_lie_guesses'
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+    const authShell = document.getElementById('authShell')
+    const appShell = document.getElementById('appShell')
+    const authForm = document.getElementById('authForm')
+    const authEmail = document.getElementById('authEmail')
+    const authPassword = document.getElementById('authPassword')
+    const authPasswordConfirm = document.getElementById('authPasswordConfirm')
+    const confirmPasswordField = document.getElementById('confirmPasswordField')
+    const authSubmitBtn = document.getElementById('authSubmitBtn')
+    const authStatus = document.getElementById('authStatus')
+    const signInTab = document.getElementById('signInTab')
+    const signUpTab = document.getElementById('signUpTab')
+    const signOutBtn = document.getElementById('signOutBtn')
+
     const roundForm = document.getElementById('roundForm')
     const statementOne = document.getElementById('statementOne')
     const statementTwo = document.getElementById('statementTwo')
@@ -20,19 +33,30 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     const correctCount = document.getElementById('correctCount')
     const totalCount = document.getElementById('totalCount')
 
-    function setFormStatus(message, tone = 'neutral') {
-      formStatus.textContent = message
-      formStatus.style.color = tone === 'success' ? '#bbf7d0' : tone === 'error' ? '#fecaca' : '#a8b0c4'
-      formStatus.style.borderColor = tone === 'success'
+    let authMode = 'signin'
+    let currentUser = null
+
+    function setStatus(element, message, tone = 'neutral') {
+      element.textContent = message
+      element.style.color = tone === 'success' ? '#bbf7d0' : tone === 'error' ? '#fecaca' : '#a8b0c4'
+      element.style.borderColor = tone === 'success'
         ? 'rgba(34, 197, 94, 0.35)'
         : tone === 'error'
           ? 'rgba(239, 68, 68, 0.35)'
           : 'rgba(255, 255, 255, 0.08)'
-      formStatus.style.background = tone === 'success'
+      element.style.background = tone === 'success'
         ? 'rgba(34, 197, 94, 0.12)'
         : tone === 'error'
           ? 'rgba(239, 68, 68, 0.12)'
           : 'rgba(255, 255, 255, 0.04)'
+    }
+
+    function setFormStatus(message, tone = 'neutral') {
+      setStatus(formStatus, message, tone)
+    }
+
+    function setAuthStatus(message, tone = 'neutral') {
+      setStatus(authStatus, message, tone)
     }
 
     function setGameStatus(message) {
@@ -61,46 +85,53 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       return statements.every((item) => item.trim().length >= 4)
     }
 
-    async function ensureSession() {
-      try {
-        const { data: existing, error: existingError } = await supabase.auth.getSession()
-        if (existingError) throw existingError
-        if (existing.session) return existing.session
+    function setAuthMode(mode) {
+      authMode = mode
+      const isSignUp = mode === 'signup'
+      signInTab.classList.toggle('active', !isSignUp)
+      signUpTab.classList.toggle('active', isSignUp)
+      signInTab.setAttribute('aria-pressed', String(!isSignUp))
+      signUpTab.setAttribute('aria-pressed', String(isSignUp))
+      authSubmitBtn.textContent = isSignUp ? 'Create account' : 'Sign in'
+      authPassword.setAttribute('autocomplete', isSignUp ? 'new-password' : 'current-password')
+      authPasswordConfirm.value = ''
+      authPasswordConfirm.required = isSignUp
+      confirmPasswordField.hidden = !isSignUp
+      setAuthStatus(isSignUp ? 'Create an account to start playing.' : 'Sign in to continue.')
+    }
 
-        const email = `guest_${crypto.randomUUID()}@twotruthsonelie.app`
-        const password = `${crypto.randomUUID()}Aa!42`
+    function showAuthedView(user) {
+      currentUser = user
+      authShell.hidden = true
+      appShell.hidden = false
+      setFormStatus('Write three statements and choose the lie.')
+    }
 
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: 'https://sling-gogiapp.web.app/email-confirmed.html'
-          }
-        })
+    function showSignedOutView() {
+      currentUser = null
+      authShell.hidden = false
+      appShell.hidden = true
+      correctCount.textContent = '0'
+      totalCount.textContent = '0'
+      roundsContainer.innerHTML = ''
+      setGameStatus('Sign in to load rounds.')
+      setFormStatus('Write three statements and choose the lie.')
+    }
 
-        if (signUpError && !String(signUpError.message).toLowerCase().includes('already registered')) {
-          throw signUpError
-        }
-
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        })
-
-        if (signInError) throw signInError
-        return signInData.session
-      } catch (error) {
-        console.error('Session error:', error.message, error.stack)
-        throw new Error('Could not start a guest session. Please refresh and try again.')
-      }
+    async function requireUser() {
+      const { data, error } = await supabase.auth.getUser()
+      if (error) throw error
+      if (!data.user) throw new Error('Please sign in to continue.')
+      return data.user
     }
 
     async function loadScore() {
       try {
-        await ensureSession()
+        const user = await requireUser()
         const { data, error } = await supabase
           .from(GUESSES_TABLE)
           .select('is_correct')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
 
         if (error) throw error
@@ -128,8 +159,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
     async function handleGuess(round, guessedIndex, card, buttonGroup) {
       try {
-        await ensureSession()
-        const statements = getStatementsFromRound(round)
+        const user = await requireUser()
         const isCorrect = guessedIndex === round.lie_index
 
         buttonGroup.querySelectorAll('.statement-btn').forEach((button, index) => {
@@ -145,7 +175,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         const { error } = await supabase.from(GUESSES_TABLE).insert({
           round_id: round.id,
           guessed_index: guessedIndex,
-          is_correct: isCorrect
+          is_correct: isCorrect,
+          player_user_id: user.id
         })
 
         if (error) throw error
@@ -209,11 +240,12 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
     async function loadRounds() {
       try {
+        const user = await requireUser()
         setGameStatus('Loading rounds...')
-        await ensureSession()
         const { data, error } = await supabase
           .from(ROUNDS_TABLE)
-          .select('id, statement_one, statement_two, statement_three, lie_index, created_at')
+          .select('id, user_id, statement_one, statement_two, statement_three, lie_index, created_at')
+          .neq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(24)
 
@@ -231,7 +263,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       try {
         submitBtn.disabled = true
         setFormStatus('Saving your round...')
-        await ensureSession()
+        await requireUser()
 
         const statements = [
           statementOne.value.trim(),
@@ -266,17 +298,124 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       }
     }
 
-    async function init() {
+    async function handleAuthSubmit(event) {
+      event.preventDefault()
       try {
-        setFormStatus('Write three statements and choose the lie.')
-        await ensureSession()
+        authSubmitBtn.disabled = true
+        const email = authEmail.value.trim().toLowerCase()
+        const password = authPassword.value
+        const confirmPassword = authPasswordConfirm.value
+
+        if (!email) {
+          throw new Error('Enter your email address.')
+        }
+
+        if (password.length < 6) {
+          throw new Error('Password must be at least 6 characters long.')
+        }
+
+        if (authMode === 'signup' && password !== confirmPassword) {
+          throw new Error('Passwords do not match.')
+        }
+
+        if (authMode === 'signup') {
+          setAuthStatus('Creating your account...')
+          const { error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: 'https://sling-gogiapp.web.app/email-confirmed.html'
+            }
+          })
+
+          if (error) throw error
+
+          setAuthStatus('Account created. Check your email to confirm, then sign in.', 'success')
+          setAuthMode('signin')
+          authPassword.value = ''
+          authPasswordConfirm.value = ''
+          return
+        }
+
+        setAuthStatus('Signing you in...')
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+
+        showAuthedView(data.user)
+        setAuthStatus('Signed in successfully.', 'success')
         await Promise.all([loadScore(), loadRounds()])
       } catch (error) {
+        console.error('Auth error:', error.message, error.stack)
+        setAuthStatus(error.message || 'Authentication failed.', 'error')
+      } finally {
+        authSubmitBtn.disabled = false
+      }
+    }
+
+    async function handleSignOut() {
+      try {
+        signOutBtn.disabled = true
+        const { error } = await supabase.auth.signOut()
+        if (error) throw error
+        showSignedOutView()
+        setAuthStatus('Signed out successfully.', 'success')
+      } catch (error) {
+        console.error('Sign out error:', error.message, error.stack)
+        setGameStatus('Could not sign out right now.')
+      } finally {
+        signOutBtn.disabled = false
+      }
+    }
+
+    async function init() {
+      try {
+        setAuthMode('signin')
+        showSignedOutView()
+        const { data, error } = await supabase.auth.getSession()
+        if (error) throw error
+
+        if (data.session?.user) {
+          showAuthedView(data.session.user)
+          await Promise.all([loadScore(), loadRounds()])
+        }
+      } catch (error) {
         console.error('Init error:', error.message, error.stack)
-        setFormStatus(error.message || 'App failed to initialize.', 'error')
+        setAuthStatus(error.message || 'App failed to initialize.', 'error')
         setGameStatus('Initialization failed.')
       }
     }
+
+    authForm.addEventListener('submit', (event) => {
+      try {
+        handleAuthSubmit(event)
+      } catch (error) {
+        console.error('Auth submit handler error:', error.message, error.stack)
+      }
+    })
+
+    signInTab.addEventListener('click', () => {
+      try {
+        setAuthMode('signin')
+      } catch (error) {
+        console.error('Sign in tab error:', error.message, error.stack)
+      }
+    })
+
+    signUpTab.addEventListener('click', () => {
+      try {
+        setAuthMode('signup')
+      } catch (error) {
+        console.error('Sign up tab error:', error.message, error.stack)
+      }
+    })
+
+    signOutBtn.addEventListener('click', () => {
+      try {
+        handleSignOut()
+      } catch (error) {
+        console.error('Sign out handler error:', error.message, error.stack)
+      }
+    })
 
     roundForm.addEventListener('submit', (event) => {
       try {
@@ -292,6 +431,20 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         loadScore()
       } catch (error) {
         console.error('Refresh error:', error.message, error.stack)
+      }
+    })
+
+    supabase.auth.onAuthStateChange((event, session) => {
+      try {
+        if (session?.user) {
+          showAuthedView(session.user)
+          loadScore()
+          loadRounds()
+        } else {
+          showSignedOutView()
+        }
+      } catch (error) {
+        console.error('Auth state change error:', error.message, error.stack)
       }
     })
 
