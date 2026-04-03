@@ -13,72 +13,113 @@
   <div class="bg-orb orb-1"></div>
   <div class="bg-orb orb-2"></div>
   <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">Social bluff game</p>
-        <h1>Two Truths One Lie</h1>
-        <p class="subtitle">Create a round, challenge other players, and see how many lies you can spot.</p>
-      </div>
-      <div class="score-card" id="scoreCard">
-        <span class="score-label">Your score</span>
-        <div class="score-values">
-          <strong id="correctCount">0</strong>
-          <span>/</span>
-          <strong id="totalCount">0</strong>
-        </div>
-      </div>
-    </header>
-
-    <main class="layout">
-      <section class="panel composer-panel">
-        <div class="panel-header">
-          <div>
-            <p class="panel-kicker">Create a round</p>
-            <h2>Enter 3 statements</h2>
-          </div>
-          <span class="pill">Saved to Supabase</span>
+    <section class="auth-shell" id="authShell">
+      <div class="auth-card panel">
+        <div class="auth-copy">
+          <p class="eyebrow">Social bluff game</p>
+          <h1>Two Truths One Lie</h1>
+          <p class="subtitle">Sign in or create an account to submit rounds, guess lies, and track your score across sessions.</p>
         </div>
 
-        <form id="roundForm" class="round-form">
+        <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button class="tab-btn active" id="signInTab" type="button" data-mode="signin" aria-pressed="true">Sign in</button>
+          <button class="tab-btn" id="signUpTab" type="button" data-mode="signup" aria-pressed="false">Create account</button>
+        </div>
+
+        <form id="authForm" class="auth-form">
           <label class="field">
-            <span>Statement 1</span>
-            <textarea id="statementOne" rows="3" maxlength="180" placeholder="I have visited 12 countries."></textarea>
-          </label>
-          <label class="field">
-            <span>Statement 2</span>
-            <textarea id="statementTwo" rows="3" maxlength="180" placeholder="I can solve a Rubik's Cube in under a minute."></textarea>
-          </label>
-          <label class="field">
-            <span>Statement 3</span>
-            <textarea id="statementThree" rows="3" maxlength="180" placeholder="I have never eaten pizza."></textarea>
+            <span>Email</span>
+            <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com" required />
           </label>
 
-          <fieldset class="lie-picker">
-            <legend>Which one is the lie?</legend>
-            <label class="radio-card"><input type="radio" name="lieIndex" value="0" checked><span>Statement 1</span></label>
-            <label class="radio-card"><input type="radio" name="lieIndex" value="1"><span>Statement 2</span></label>
-            <label class="radio-card"><input type="radio" name="lieIndex" value="2"><span>Statement 3</span></label>
-          </fieldset>
+          <label class="field">
+            <span>Password</span>
+            <input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 6 characters" required />
+          </label>
 
-          <button class="primary-btn" type="submit" id="submitBtn">Submit round</button>
+          <label class="field" id="confirmPasswordField" hidden>
+            <span>Confirm password</span>
+            <input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Re-enter your password" />
+          </label>
+
+          <button class="primary-btn" type="submit" id="authSubmitBtn">Sign in</button>
         </form>
 
-        <div class="status-message" id="formStatus" aria-live="polite"></div>
-      </section>
+        <div class="status-message auth-status" id="authStatus" aria-live="polite"></div>
+      </div>
+    </section>
 
-      <section class="panel game-panel">
-        <div class="panel-header">
-          <div>
-            <p class="panel-kicker">Game feed</p>
-            <h2>Guess the lie</h2>
-          </div>
-          <button class="ghost-btn" id="refreshBtn" type="button">Refresh</button>
+    <section id="appShell" hidden>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Social bluff game</p>
+          <h1>Two Truths One Lie</h1>
+          <p class="subtitle">Create a round, challenge other players, and see how many lies you can spot.</p>
         </div>
+        <div class="topbar-actions">
+          <div class="score-card" id="scoreCard">
+            <span class="score-label">Your score</span>
+            <div class="score-values">
+              <strong id="correctCount">0</strong>
+              <span>/</span>
+              <strong id="totalCount">0</strong>
+            </div>
+          </div>
+          <button class="ghost-btn signout-btn" id="signOutBtn" type="button">Sign out</button>
+        </div>
+      </header>
 
-        <div class="status-inline" id="gameStatus">Loading rounds...</div>
-        <div class="cards-grid" id="roundsContainer"></div>
-      </section>
-    </main>
+      <main class="layout">
+        <section class="panel composer-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Create a round</p>
+              <h2>Enter 3 statements</h2>
+            </div>
+            <span class="pill">Saved to Supabase</span>
+          </div>
+
+          <form id="roundForm" class="round-form">
+            <label class="field">
+              <span>Statement 1</span>
+              <textarea id="statementOne" rows="3" maxlength="180" placeholder="I have visited 12 countries."></textarea>
+            </label>
+            <label class="field">
+              <span>Statement 2</span>
+              <textarea id="statementTwo" rows="3" maxlength="180" placeholder="I can solve a Rubik's Cube in under a minute."></textarea>
+            </label>
+            <label class="field">
+              <span>Statement 3</span>
+              <textarea id="statementThree" rows="3" maxlength="180" placeholder="I have never eaten pizza."></textarea>
+            </label>
+
+            <fieldset class="lie-picker">
+              <legend>Which one is the lie?</legend>
+              <label class="radio-card"><input type="radio" name="lieIndex" value="0" checked><span>Statement 1</span></label>
+              <label class="radio-card"><input type="radio" name="lieIndex" value="1"><span>Statement 2</span></label>
+              <label class="radio-card"><input type="radio" name="lieIndex" value="2"><span>Statement 3</span></label>
+            </fieldset>
+
+            <button class="primary-btn" type="submit" id="submitBtn">Submit round</button>
+          </form>
+
+          <div class="status-message" id="formStatus" aria-live="polite"></div>
+        </section>
+
+        <section class="panel game-panel">
+          <div class="panel-header">
+            <div>
+              <p class="panel-kicker">Game feed</p>
+              <h2>Guess the lie</h2>
+            </div>
+            <button class="ghost-btn" id="refreshBtn" type="button">Refresh</button>
+          </div>
+
+          <div class="status-inline" id="gameStatus">Loading rounds...</div>
+          <div class="cards-grid" id="roundsContainer"></div>
+        </section>
+      </main>
+    </section>
   </div>
 
   <script type="module" src="app.js" crossorigin="anonymous"></script>
