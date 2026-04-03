@@ -8,6 +8,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     const GUESSES_TABLE = 'uNMexs7BYTXQ2_two_truths_one_lie_guesses'
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
+    const authPage = document.getElementById('authPage')
     const authShell = document.getElementById('authShell')
     const appShell = document.getElementById('appShell')
     const authForm = document.getElementById('authForm')
@@ -102,6 +103,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
     function showAuthedView(user) {
       currentUser = user
+      authPage.hidden = true
       authShell.hidden = true
       appShell.hidden = false
       setFormStatus('Write three statements and choose the lie.')
@@ -109,6 +111,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
     function showSignedOutView() {
       currentUser = null
+      authPage.hidden = false
       authShell.hidden = false
       appShell.hidden = true
       correctCount.textContent = '0'
